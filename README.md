@@ -1,8 +1,8 @@
 ---
 title: Kokoro TTS
-emoji: ❤️
+emoji: 🍻
 colorFrom: indigo
-colorTo: pink
+colorTo: black
 sdk: gradio
 sdk_version: 5.12.0
 app_file: app.py
@@ -11,5 +11,3 @@ license: apache-2.0
 short_description: Upgraded to v1.0!
 disable_embedding: true
 ---
-
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
