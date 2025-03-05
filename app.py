@@ -1,12 +1,11 @@
-import spaces
 from kokoro import KModel, KPipeline
 import gradio as gr
 import os
 import random
 import torch
 
-IS_DUPLICATE = not os.getenv('SPACE_ID', '').startswith('hexgrad/')
-CHAR_LIMIT = None if IS_DUPLICATE else 5000
+# Remove the import spaces line
+# import spaces
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 models = {gpu: KModel().to('cuda' if gpu else 'cpu').eval() for gpu in [False] + ([True] if CUDA_AVAILABLE else [])}
@@ -14,12 +13,13 @@ pipelines = {lang_code: KPipeline(lang_code=lang_code, model=False) for lang_cod
 pipelines['a'].g2p.lexicon.golds['kokoro'] = 'kˈOkəɹO'
 pipelines['b'].g2p.lexicon.golds['kokoro'] = 'kˈQkəɹQ'
 
-@spaces.GPU(duration=30)
+# Remove the @spaces.GPU decorator
+# @spaces.GPU(duration=30)
 def forward_gpu(ps, ref_s, speed):
     return models[True](ps, ref_s, speed)
 
 def generate_first(text, voice='af_heart', speed=1, use_gpu=CUDA_AVAILABLE):
-    text = text if CHAR_LIMIT is None else text.strip()[:CHAR_LIMIT]
+    text = text.strip()
     pipeline = pipelines[voice[0]]
     pack = pipeline.load_voice(voice)
     use_gpu = use_gpu and CUDA_AVAILABLE
@@ -51,7 +51,7 @@ def tokenize_first(text, voice='af_heart'):
     return ''
 
 def generate_all(text, voice='af_heart', speed=1, use_gpu=CUDA_AVAILABLE):
-    text = text if CHAR_LIMIT is None else text.strip()[:CHAR_LIMIT]
+    text = text.strip()
     pipeline = pipelines[voice[0]]
     pack = pipeline.load_voice(voice)
     use_gpu = use_gpu and CUDA_AVAILABLE
@@ -142,9 +142,6 @@ with gr.Blocks() as generate_tab:
         predict_btn = gr.Button('Predict', variant='secondary', visible=False)
 
 STREAM_NOTE = ['⚠️ There is an unknown Gradio bug that might yield no audio the first time you click `Stream`.']
-if CHAR_LIMIT is not None:
-    STREAM_NOTE.append(f'✂️ Each stream is capped at {CHAR_LIMIT} characters.')
-    STREAM_NOTE.append('🚀 Want more characters? You can [use Kokoro directly](https://huggingface.co/hexgrad/Kokoro-82M#usage) or duplicate this space:')
 STREAM_NOTE = '\n\n'.join(STREAM_NOTE)
 
 with gr.Blocks() as stream_tab:
@@ -154,23 +151,21 @@ with gr.Blocks() as stream_tab:
         stop_btn = gr.Button('Stop', variant='stop')
     with gr.Accordion('Note', open=True):
         gr.Markdown(STREAM_NOTE)
-        gr.DuplicateButton()
 
-BANNER_TEXT = '''
-[***Kokoro*** **is an open-weight TTS model with 82 million parameters.**](https://huggingface.co/hexgrad/Kokoro-82M)
-
-As of January 31st, 2025, Kokoro was the most-liked [**TTS model**](https://huggingface.co/models?pipeline_tag=text-to-speech&sort=likes) and the most-liked [**TTS space**](https://huggingface.co/spaces?sort=likes&search=tts) on Hugging Face.
-
-This demo only showcases English, but you can directly use the model to access other languages.
-'''
-API_OPEN = os.getenv('SPACE_ID') != 'hexgrad/Kokoro-TTS'
-API_NAME = None if API_OPEN else False
 with gr.Blocks() as app:
     with gr.Row():
-        gr.Markdown(BANNER_TEXT, container=True)
+        gr.Markdown(
+            '''
+            [***Kokoro*** **is an open-weight TTS model with 82 million parameters.**](https://huggingface.co/hexgrad/Kokoro-82M)
+
+            As of January 31st, 2025, Kokoro was the most-liked [**TTS model**](https://huggingface.co/models?pipeline_tag=text-to-speech&sort=likes) and the most-liked [**TTS space**](https://huggingface.co/spaces?sort=likes&search=tts) on Hugging Face.
+
+            This demo only showcases English, but you can directly use the model to access other languages.
+            '''
+        )
     with gr.Row():
         with gr.Column():
-            text = gr.Textbox(label='Input Text', info=f"Up to ~500 characters per Generate, or {'∞' if CHAR_LIMIT is None else CHAR_LIMIT} characters per Stream")
+            text = gr.Textbox(label='Input Text', info=f"Up to ~500 characters per Generate")
             with gr.Row():
                 voice = gr.Dropdown(list(CHOICES.items()), value='af_heart', label='Voice', info='Quality and availability vary by language')
                 use_gpu = gr.Dropdown(
@@ -187,14 +182,14 @@ with gr.Blocks() as app:
                 frankenstein_btn = gr.Button('💀 Frankenstein 📗', variant='secondary')
         with gr.Column():
             gr.TabbedInterface([generate_tab, stream_tab], ['Generate', 'Stream'])
-    random_btn.click(fn=get_random_quote, inputs=[], outputs=[text], api_name=API_NAME)
-    gatsby_btn.click(fn=get_gatsby, inputs=[], outputs=[text], api_name=API_NAME)
-    frankenstein_btn.click(fn=get_frankenstein, inputs=[], outputs=[text], api_name=API_NAME)
-    generate_btn.click(fn=generate_first, inputs=[text, voice, speed, use_gpu], outputs=[out_audio, out_ps], api_name=API_NAME)
-    tokenize_btn.click(fn=tokenize_first, inputs=[text, voice], outputs=[out_ps], api_name=API_NAME)
-    stream_event = stream_btn.click(fn=generate_all, inputs=[text, voice, speed, use_gpu], outputs=[out_stream], api_name=API_NAME)
+    random_btn.click(fn=get_random_quote, inputs=[], outputs=[text])
+    gatsby_btn.click(fn=get_gatsby, inputs=[], outputs=[text])
+    frankenstein_btn.click(fn=get_frankenstein, inputs=[], outputs=[text])
+    generate_btn.click(fn=generate_first, inputs=[text, voice, speed, use_gpu], outputs=[out_audio, out_ps])
+    tokenize_btn.click(fn=tokenize_first, inputs=[text, voice], outputs=[out_ps])
+    stream_event = stream_btn.click(fn=generate_all, inputs=[text, voice, speed, use_gpu], outputs=[out_stream])
     stop_btn.click(fn=None, cancels=stream_event)
-    predict_btn.click(fn=predict, inputs=[text, voice, speed], outputs=[out_audio], api_name=API_NAME)
+    predict_btn.click(fn=predict, inputs=[text, voice, speed], outputs=[out_audio])
 
 if __name__ == '__main__':
-    app.queue(api_open=API_OPEN).launch(show_api=API_OPEN, ssr_mode=True)
+    app.queue().launch()
